@@ -21,10 +21,6 @@
         "junior": "all"
       }
     },
-    "lunch_break": {
-      "start": "12:00",
-      "end": "13:00"
-    },
     "on_call_shifts": [
       {
         "day_start": "domingo",

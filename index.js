@@ -11,15 +11,117 @@ function readInputData(filePath) {
 
 // Função para gerar o modelo GLPK
 function generateGLPKModel(inputData, GLPK) {
+  /* 
+  inputData = {
+    "month": "10/2024",
+    "developers": [
+      { "name": "Guilherme Kun", "level": "senior", "hourly_rate": 200 },
+      { "name": "Carlos", "level": "senior", "hourly_rate": 200 },
+      { "name": "João Brasil", "level": "pleno", "hourly_rate": 100 },
+      { "name": "Guilherme Carmo", "level": "pleno", "hourly_rate": 100 },
+      { "name": "Juliana", "level": "pleno", "hourly_rate": 100 },
+      { "name": "Larissa", "level": "junior", "hourly_rate": 50 },
+      { "name": "Miguel", "level": "junior", "hourly_rate": 50 },
+      { "name": "Gabriel Resende", "level": "junior", "hourly_rate": 50 },
+      { "name": "Mário", "level": "junior", "hourly_rate": 50 }
+    ],
+    "rules": {
+      "business_hours": {
+        "start": "08:00",
+        "end": "17:00",
+        "min_support_requirement": {
+          "senior": 1,
+          "pleno": 2,
+          "junior": "all"
+        }
+      },
+      "on_call_shifts": [
+        {
+          "day_start": "domingo",
+          "start": "17:00",
+          "end": "08:00",
+          "day_end": "segunda",
+          "senior_only": true,
+          "activity_hours_default": 1
+        },
+        {
+          "day_start": "segunda",
+          "start": "17:00",
+          "end": "08:00",
+          "day_end": "terça",
+          "senior_only": false,
+          "activity_hours_default": 0
+        },
+        {
+          "day_start": "terça",
+          "start": "17:00",
+          "end": "08:00",
+          "day_end": "quarta",
+          "senior_only": false,
+          "activity_hours_default": 0
+        },
+        {
+          "day_start": "quarta",
+          "start": "17:00",
+          "end": "08:00",
+          "day_end": "quinta",
+          "senior_only": true,
+          "activity_hours_default": 1
+        },
+        {
+          "day_start": "quinta",
+          "start": "17:00",
+          "end": "08:00",
+          "day_end": "sexta",
+          "senior_only": false,
+          "activity_hours_default": 0
+        },
+        {
+          "day_start": "sexta",
+          "start": "17:00",
+          "end": "17:00",
+          "day_end": "sábado",
+          "senior_only": false,
+          "activity_hours_default": 0
+        },
+        {
+          "day_start": "sábado",
+          "start": "17:00",
+          "end": "17:00",
+          "day_end": "domingo",
+          "senior_only": false,
+          "activity_hours_default": 0
+        }
+      ],
+      "minimum_weekly_active_hours": 40,
+      "overtime_payment_rate": 1.5,
+      "on_call_payment_rate": 0.5,
+      "allocation_restrictions": {
+        "commercial_hours_only": ["junior"],
+        "max_weekly_on_call_shifts": 2,
+        "min_weekly_rest_days": 1
+      },
+      "maximum_weekly_hours": 52,
+      "min_rest_period_after_active_hours": 12
+    }
+  }
+  */
+
   const { developers, rules } = inputData;
   const {
     business_hours,
-    lunch_break,
     on_call_shifts,
     minimum_weekly_active_hours,
+    maximum_weekly_hours,
     allocation_restrictions,
+    on_call_payment_rate,
+    overtime_payment_rate,
   } = rules;
-  const { start: business_start, end: business_end } = business_hours;
+
+  const weeksInMonth = 4; // Considerando um mês com 4 semanas (pode ser ajustado para 5 se necessário)
+  const minimum_monthly_active_hours =
+    minimum_weekly_active_hours * weeksInMonth;
+  const maximum_monthly_hours = maximum_weekly_hours * weeksInMonth;
 
   // Definindo o modelo básico
   const model = {
@@ -35,8 +137,8 @@ function generateGLPKModel(inputData, GLPK) {
   };
 
   // Definindo variáveis para o custo de cada desenvolvedor
-  developers.forEach((dev, i) => {
-    // Variável para cada desenvolvedor e seus turnos
+  developers.forEach((dev) => {
+    // Variáveis para horas ativas e sobreaviso de cada desenvolvedor
     const activeVar = `active_${dev.name}`;
     const onCallVar = `on_call_${dev.name}`;
 
@@ -48,19 +150,23 @@ function generateGLPKModel(inputData, GLPK) {
 
     model.objective.vars.push({
       name: onCallVar,
-      coef: dev.hourly_rate * rules.on_call_payment_rate, // Custo das horas de sobreaviso
+      coef: dev.hourly_rate * on_call_payment_rate, // Custo das horas de sobreaviso
     });
 
-    // Restrições básicas de tempo ativo e sobreaviso por desenvolvedor
+    // Restrições de horas ativas mínimas (mensais)
     model.subjectTo.push({
       name: `min_active_hours_${dev.name}`,
       vars: [{ name: activeVar, coef: 1 }],
-      bnds: { type: GLPK.GLP_LO, ub: 0, lb: minimum_weekly_active_hours }, // Pelo menos 40 horas ativas
+      bnds: { type: GLPK.GLP_LO, ub: 0, lb: minimum_monthly_active_hours }, // Pelo menos 160 horas ativas (4 semanas * 40 horas)
+    });
+
+    // Restrições de horas ativas máximas (mensais)
+    model.subjectTo.push({
+      name: `max_active_hours_${dev.name}`,
+      vars: [{ name: activeVar, coef: 1 }],
+      bnds: { type: GLPK.GLP_UP, lb: 0, ub: maximum_monthly_hours }, // No máximo 208 horas (52 * 4 semanas)
     });
   });
-
-  // Adicionar mais restrições, como a distribuição de horários e restrições de sobreaviso
-  // Ainda precisamos definir como alocar corretamente os desenvolvedores nos turnos ativos e de sobreaviso
 
   return model;
 }
