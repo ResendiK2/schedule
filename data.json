@@ -1,0 +1,78 @@
+{
+  "mes": "outubro",
+  "dias_uteis": 22,
+  "desenvolvedores": [
+    { "nome": "Guilherme Kun", "nivel": "senior", "custo_hora": 200 },
+    { "nome": "Carlos", "nivel": "senior", "custo_hora": 200 },
+    { "nome": "João Brasil", "nivel": "pleno", "custo_hora": 100 },
+    { "nome": "Guilherme Carmo", "nivel": "pleno", "custo_hora": 100 },
+    { "nome": "Juliana", "nivel": "pleno", "custo_hora": 100 },
+    { "nome": "Larissa", "nivel": "junior", "custo_hora": 50 },
+    { "nome": "Miguel", "nivel": "junior", "custo_hora": 50 },
+    { "nome": "Gabriel Resende", "nivel": "junior", "custo_hora": 50 },
+    { "nome": "Mário", "nivel": "junior", "custo_hora": 50 }
+  ],
+  "regras": {
+    "horario_comercial": {
+      "inicio": "08:00",
+      "fim": "17:00"
+    },
+    "intervalo_almoco": {
+      "inicio": "12:00",
+      "fim": "13:00"
+    },
+    "sobreaviso": [
+      {
+        "dia": "domingo",
+        "inicio": "17:00",
+        "fim": "08:00",
+        "dia_fim": "segunda"
+      },
+      {
+        "dia": "segunda",
+        "inicio": "17:00",
+        "fim": "08:00",
+        "dia_fim": "terca"
+      },
+      {
+        "dia": "terca",
+        "inicio": "17:00",
+        "fim": "08:00",
+        "dia_fim": "quarta"
+      },
+      {
+        "dia": "quarta",
+        "inicio": "17:00",
+        "fim": "08:00",
+        "dia_fim": "quinta"
+      },
+      {
+        "dia": "quinta",
+        "inicio": "17:00",
+        "fim": "08:00",
+        "dia_fim": "sexta"
+      },
+      {
+        "dia": "sexta",
+        "inicio": "17:00",
+        "fim": "17:00",
+        "dia_fim": "sabado"
+      },
+      {
+        "dia": "sabado",
+        "inicio": "17:00",
+        "fim": "17:00",
+        "dia_fim": "domingo"
+      }
+    ],
+    "horas_minimas_semanais": 40,
+    "pagamento_hora_extra": 1.5,
+    "pagamento_sobreaviso": 0.5,
+    "restricoes_alocacao": {
+      "juniores_horario_comercial": true,
+      "senior_deploy_domingo_quarta": true,
+      "maximo_semanal_sobreaviso": 2,
+      "folga_minima_semanal": 1
+    }
+  }
+}
