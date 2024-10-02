@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
-const moment = require("moment");
 const glpkModule = require("glpk.js");
+const { generateSchedulePDF } = require("./pdf"); // Importa a função para gerar o PDF
 
 // Função para ler e parsear o JSON de entrada
 function readInputData(filePath) {
@@ -11,119 +11,8 @@ function readInputData(filePath) {
 
 // Função para gerar o modelo GLPK
 function generateGLPKModel(inputData, GLPK) {
-  /* 
-  inputData = {
-    "month": "10/2024",
-    "developers": [
-      { "name": "Guilherme Kun", "level": "senior", "hourly_rate": 200 },
-      { "name": "Carlos", "level": "senior", "hourly_rate": 200 },
-      { "name": "João Brasil", "level": "pleno", "hourly_rate": 100 },
-      { "name": "Guilherme Carmo", "level": "pleno", "hourly_rate": 100 },
-      { "name": "Juliana", "level": "pleno", "hourly_rate": 100 },
-      { "name": "Larissa", "level": "junior", "hourly_rate": 50 },
-      { "name": "Miguel", "level": "junior", "hourly_rate": 50 },
-      { "name": "Gabriel Resende", "level": "junior", "hourly_rate": 50 },
-      { "name": "Mário", "level": "junior", "hourly_rate": 50 }
-    ],
-    "rules": {
-      "business_hours": {
-        "start": "08:00",
-        "end": "17:00",
-        "min_support_requirement": {
-          "senior": 1,
-          "pleno": 2,
-          "junior": "all"
-        }
-      },
-      "on_call_shifts": [
-        {
-          "day_start": "domingo",
-          "start": "17:00",
-          "end": "08:00",
-          "day_end": "segunda",
-          "senior_only": true,
-          "activity_hours_default": 1
-        },
-        {
-          "day_start": "segunda",
-          "start": "17:00",
-          "end": "08:00",
-          "day_end": "terça",
-          "senior_only": false,
-          "activity_hours_default": 0
-        },
-        {
-          "day_start": "terça",
-          "start": "17:00",
-          "end": "08:00",
-          "day_end": "quarta",
-          "senior_only": false,
-          "activity_hours_default": 0
-        },
-        {
-          "day_start": "quarta",
-          "start": "17:00",
-          "end": "08:00",
-          "day_end": "quinta",
-          "senior_only": true,
-          "activity_hours_default": 1
-        },
-        {
-          "day_start": "quinta",
-          "start": "17:00",
-          "end": "08:00",
-          "day_end": "sexta",
-          "senior_only": false,
-          "activity_hours_default": 0
-        },
-        {
-          "day_start": "sexta",
-          "start": "17:00",
-          "end": "17:00",
-          "day_end": "sábado",
-          "senior_only": false,
-          "activity_hours_default": 0
-        },
-        {
-          "day_start": "sábado",
-          "start": "17:00",
-          "end": "17:00",
-          "day_end": "domingo",
-          "senior_only": false,
-          "activity_hours_default": 0
-        }
-      ],
-      "minimum_weekly_active_hours": 40,
-      "overtime_payment_rate": 1.5,
-      "on_call_payment_rate": 0.5,
-      "allocation_restrictions": {
-        "commercial_hours_only": ["junior"],
-        "max_weekly_on_call_shifts": 2,
-        "min_weekly_rest_days": 1
-      },
-      "maximum_weekly_hours": 52,
-      "min_rest_period_after_active_hours": 12
-    }
-  }
-  */
+  const { developers } = inputData;
 
-  const { developers, rules } = inputData;
-  const {
-    business_hours,
-    on_call_shifts,
-    minimum_weekly_active_hours,
-    maximum_weekly_hours,
-    allocation_restrictions,
-    on_call_payment_rate,
-    overtime_payment_rate,
-  } = rules;
-
-  const weeksInMonth = 4; // Considerando um mês com 4 semanas (pode ser ajustado para 5 se necessário)
-  const minimum_monthly_active_hours =
-    minimum_weekly_active_hours * weeksInMonth;
-  const maximum_monthly_hours = maximum_weekly_hours * weeksInMonth;
-
-  // Definindo o modelo básico
   const model = {
     name: "Developer Scheduling",
     objective: {
@@ -136,37 +25,68 @@ function generateGLPKModel(inputData, GLPK) {
     generals: [],
   };
 
-  // Definindo variáveis para o custo de cada desenvolvedor
-  developers.forEach((dev) => {
-    // Variáveis para horas ativas e sobreaviso de cada desenvolvedor
+  developers.forEach((dev, i) => {
     const activeVar = `active_${dev.name}`;
     const onCallVar = `on_call_${dev.name}`;
+    const onCallActiveVar = `on_call_active_${dev.name}`;
 
-    // Adiciona essas variáveis ao modelo
-    model.objective.vars.push({
-      name: activeVar,
-      coef: dev.hourly_rate, // Custo das horas ativas
-    });
+    model.objective.vars.push(
+      { name: activeVar, coef: dev.hourly_rate },
+      { name: onCallVar, coef: dev.hourly_rate * 0.5 },
+      { name: onCallActiveVar, coef: dev.hourly_rate * 1.5 }
+    );
 
-    model.objective.vars.push({
-      name: onCallVar,
-      coef: dev.hourly_rate * on_call_payment_rate, // Custo das horas de sobreaviso
-    });
+    model.bounds.push(
+      { name: activeVar, type: GLPK.GLP_DB, ub: 52, lb: 40 },
+      { name: onCallVar, type: GLPK.GLP_LO, lb: 0 },
+      { name: onCallActiveVar, type: GLPK.GLP_LO, lb: 0 }
+    );
 
-    // Restrições de horas ativas mínimas (mensais)
     model.subjectTo.push({
       name: `min_active_hours_${dev.name}`,
       vars: [{ name: activeVar, coef: 1 }],
-      bnds: { type: GLPK.GLP_LO, ub: 0, lb: minimum_monthly_active_hours }, // Pelo menos 160 horas ativas (4 semanas * 40 horas)
+      bnds: { type: GLPK.GLP_LO, ub: 0, lb: 40 },
     });
 
-    // Restrições de horas ativas máximas (mensais)
-    model.subjectTo.push({
-      name: `max_active_hours_${dev.name}`,
-      vars: [{ name: activeVar, coef: 1 }],
-      bnds: { type: GLPK.GLP_UP, lb: 0, ub: maximum_monthly_hours }, // No máximo 208 horas (52 * 4 semanas)
-    });
+    if (dev.level === "junior") {
+      model.bounds.push({ name: onCallVar, type: GLPK.GLP_FX, lb: 0, ub: 0 });
+      model.bounds.push({
+        name: onCallActiveVar,
+        type: GLPK.GLP_FX,
+        lb: 0,
+        ub: 0,
+      });
+    }
   });
+
+  model.subjectTo.push({
+    name: "coverage_requirement",
+    vars: developers.map((dev) => ({ name: `active_${dev.name}`, coef: 1 })),
+    bnds: { type: GLPK.GLP_LO, lb: 168 },
+  });
+
+  model.subjectTo.push({
+    name: "daily_support_requirement",
+    vars: [
+      ...developers
+        .filter((dev) => dev.level === "pleno")
+        .map((dev) => ({ name: `active_${dev.name}`, coef: 1 })),
+      ...developers
+        .filter((dev) => dev.level === "senior")
+        .map((dev) => ({ name: `active_${dev.name}`, coef: 2 })),
+    ],
+    bnds: { type: GLPK.GLP_LO, lb: 2 },
+  });
+
+  developers
+    .filter((dev) => dev.level !== "junior")
+    .forEach((dev) => {
+      model.subjectTo.push({
+        name: `weekend_on_call_${dev.name}`,
+        vars: [{ name: `on_call_${dev.name}`, coef: 1 }],
+        bnds: { type: GLPK.GLP_LO, lb: 24 },
+      });
+    });
 
   return model;
 }
@@ -197,7 +117,7 @@ async function main() {
 
     if (solution.result.status === GLPK.GLP_OPT) {
       console.log("Solução ótima encontrada.");
-      console.log("Solução:", solution);
+      console.log("Custo total:", solution);
     } else {
       console.log("Não foi possível encontrar uma solução ótima.");
       console.log(`Status da solução: ${solution.result.status}`);
