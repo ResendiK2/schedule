@@ -1,78 +1,97 @@
 {
-  "mes": "outubro",
-  "dias_uteis": 22,
-  "desenvolvedores": [
-    { "nome": "Guilherme Kun", "nivel": "senior", "custo_hora": 200 },
-    { "nome": "Carlos", "nivel": "senior", "custo_hora": 200 },
-    { "nome": "João Brasil", "nivel": "pleno", "custo_hora": 100 },
-    { "nome": "Guilherme Carmo", "nivel": "pleno", "custo_hora": 100 },
-    { "nome": "Juliana", "nivel": "pleno", "custo_hora": 100 },
-    { "nome": "Larissa", "nivel": "junior", "custo_hora": 50 },
-    { "nome": "Miguel", "nivel": "junior", "custo_hora": 50 },
-    { "nome": "Gabriel Resende", "nivel": "junior", "custo_hora": 50 },
-    { "nome": "Mário", "nivel": "junior", "custo_hora": 50 }
+  "month": "10/2024",
+  "developers": [
+    { "name": "Guilherme Kun", "level": "senior", "hourly_rate": 200 },
+    { "name": "Carlos", "level": "senior", "hourly_rate": 200 },
+    { "name": "João Brasil", "level": "pleno", "hourly_rate": 100 },
+    { "name": "Guilherme Carmo", "level": "pleno", "hourly_rate": 100 },
+    { "name": "Juliana", "level": "pleno", "hourly_rate": 100 },
+    { "name": "Larissa", "level": "junior", "hourly_rate": 50 },
+    { "name": "Miguel", "level": "junior", "hourly_rate": 50 },
+    { "name": "Gabriel Resende", "level": "junior", "hourly_rate": 50 },
+    { "name": "Mário", "level": "junior", "hourly_rate": 50 }
   ],
-  "regras": {
-    "horario_comercial": {
-      "inicio": "08:00",
-      "fim": "17:00"
+  "rules": {
+    "business_hours": {
+      "start": "08:00",
+      "end": "17:00",
+      "min_support_requirement": {
+        "senior": 1,
+        "pleno": 2,
+        "junior": "all"
+      }
     },
-    "intervalo_almoco": {
-      "inicio": "12:00",
-      "fim": "13:00"
+    "lunch_break": {
+      "start": "12:00",
+      "end": "13:00"
     },
-    "sobreaviso": [
+    "on_call_shifts": [
       {
-        "dia": "domingo",
-        "inicio": "17:00",
-        "fim": "08:00",
-        "dia_fim": "segunda"
+        "day_start": "domingo",
+        "start": "17:00",
+        "end": "08:00",
+        "day_end": "segunda",
+        "senior_only": true,
+        "activity_hours_default": 1
       },
       {
-        "dia": "segunda",
-        "inicio": "17:00",
-        "fim": "08:00",
-        "dia_fim": "terca"
+        "day_start": "segunda",
+        "start": "17:00",
+        "end": "08:00",
+        "day_end": "terça",
+        "senior_only": false,
+        "activity_hours_default": 0
       },
       {
-        "dia": "terca",
-        "inicio": "17:00",
-        "fim": "08:00",
-        "dia_fim": "quarta"
+        "day_start": "terça",
+        "start": "17:00",
+        "end": "08:00",
+        "day_end": "quarta",
+        "senior_only": false,
+        "activity_hours_default": 0
       },
       {
-        "dia": "quarta",
-        "inicio": "17:00",
-        "fim": "08:00",
-        "dia_fim": "quinta"
+        "day_start": "quarta",
+        "start": "17:00",
+        "end": "08:00",
+        "day_end": "quinta",
+        "senior_only": true,
+        "activity_hours_default": 1
       },
       {
-        "dia": "quinta",
-        "inicio": "17:00",
-        "fim": "08:00",
-        "dia_fim": "sexta"
+        "day_start": "quinta",
+        "start": "17:00",
+        "end": "08:00",
+        "day_end": "sexta",
+        "senior_only": false,
+        "activity_hours_default": 0
       },
       {
-        "dia": "sexta",
-        "inicio": "17:00",
-        "fim": "17:00",
-        "dia_fim": "sabado"
+        "day_start": "sexta",
+        "start": "17:00",
+        "end": "17:00",
+        "day_end": "sábado",
+        "senior_only": false,
+        "activity_hours_default": 0
       },
       {
-        "dia": "sabado",
-        "inicio": "17:00",
-        "fim": "17:00",
-        "dia_fim": "domingo"
+        "day_start": "sábado",
+        "start": "17:00",
+        "end": "17:00",
+        "day_end": "domingo",
+        "senior_only": false,
+        "activity_hours_default": 0
       }
     ],
-    "horas_minimas_semanais": 40,
-    "pagamento_hora_extra": 1.5,
-    "pagamento_sobreaviso": 0.5,
-    "restricoes_alocacao": {
-      "juniores_horario_comercial": true,
-      "senior_deploy_domingo_quarta": true,
-      "maximo_semanal_sobreaviso": 2,
-      "folga_minima_semanal": 1
-    }
+    "minimum_weekly_active_hours": 40,
+    "overtime_payment_rate": 1.5,
+    "on_call_payment_rate": 0.5,
+    "allocation_restrictions": {
+      "commercial_hours_only": ["junior"],
+      "max_weekly_on_call_shifts": 2,
+      "min_weekly_rest_days": 1
+    },
+    "maximum_weekly_hours": 52,
+    "min_rest_period_after_active_hours": 12
   }
 }

@@ -1,102 +1,85 @@
 const fs = require("fs");
-const glpk = require("glpk.js");
+const path = require("path");
+const moment = require("moment");
+const glpkModule = require("glpk.js");
 
-// Função para carregar o arquivo JSON
-function carregarDados(arquivoJson) {
-  const dados = fs.readFileSync(arquivoJson);
-  return JSON.parse(dados);
+// Função para ler e parsear o JSON de entrada
+function readInputData(filePath) {
+  const data = fs.readFileSync(filePath, "utf-8");
+  return JSON.parse(data);
 }
 
-// Função para construir o modelo de otimização
-function construirModelo(dados) {
-  const lp = new glpk.LinearProgram();
-  const devs = dados.desenvolvedores;
-  const regras = dados.regras;
+// Função para gerar o modelo GLPK
+function generateGLPKModel(inputData, GLPK) {
+  const { developers, rules } = inputData;
+  const {
+    business_hours,
+    lunch_break,
+    on_call_shifts,
+    minimum_weekly_active_hours,
+    maximum_weekly_hours,
+    allocation_restrictions,
+  } = rules;
 
-  const diasUteis = dados.dias_uteis;
+  const { start, end, min_support_requirement } = business_hours;
+  const { start: start_lunch, end: end_lunch } = lunch_break;
+  const {
+    commercial_hours_only,
+    max_weekly_on_call_shifts,
+    min_weekly_rest_days,
+  } = allocation_restrictions;
 
-  const variaveis = {};
+  const model = {
+    name: "Developer Scheduling",
+    objective: {
+      direction: GLPK.GLP_MIN,
+      name: "total_cost",
+      vars: [],
+    },
+    subjectTo: [],
+    bounds: [],
+    generals: [],
+  };
 
-  // Definindo as variáveis de decisão
-  devs.forEach((dev) => {
-    for (let dia = 0; dia < diasUteis; dia++) {
-      // Definindo variáveis para as horas comerciais
-      if (
-        dev.nivel === "junior" ||
-        dev.nivel === "pleno" ||
-        dev.nivel === "senior"
-      ) {
-        variaveis[`horario_comercial_${dia}_${dev.nome}`] = lp.addVariable({
-          name: `horario_comercial_${dia}_${dev.nome}`,
-          cost: dev.custo_hora,
-          type: glpk.VariableType.Binary,
-        });
-      }
+  // a implementação do problema de escalonamento de desenvolvedores deve ser feita aqui...
 
-      // Definindo variáveis para as horas de sobreaviso
-      if (dev.nivel === "pleno" || dev.nivel === "senior") {
-        variaveis[`sobreaviso_${dia}_${dev.nome}`] = lp.addVariable({
-          name: `sobreaviso_${dia}_${dev.nome}`,
-          cost: dev.custo_hora * regras.pagamento_sobreaviso,
-          type: glpk.VariableType.Binary,
-        });
-      }
-    }
-  });
+  return model;
+}
 
-  // Adicionando restrições de carga horária mínima
-  devs.forEach((dev) => {
-    const restricaoMinHoras = [];
-    for (let dia = 0; dia < diasUteis; dia++) {
-      if (variaveis[`horario_comercial_${dia}_${dev.nome}`]) {
-        restricaoMinHoras.push({
-          variable: variaveis[`horario_comercial_${dia}_${dev.nome}`],
-          coefficient: 1,
-        });
-      }
-    }
-    lp.addConstraint({
-      name: `min_horas_${dev.nome}`,
-      terms: restricaoMinHoras,
-      rhs: regras.horas_minimas_semanais,
-      operator: glpk.ConstraintType.GreaterThan,
-    });
-  });
-
-  // Adicionando restrições de sobreaviso
-  for (let dia = 0; dia < diasUteis; dia++) {
-    const restricaoSobreaviso = [];
-    devs.forEach((dev) => {
-      if (variaveis[`sobreaviso_${dia}_${dev.nome}`]) {
-        restricaoSobreaviso.push({
-          variable: variaveis[`sobreaviso_${dia}_${dev.nome}`],
-          coefficient: 1,
-        });
-      }
-    });
-    lp.addConstraint({
-      name: `restricao_sobreaviso_dia_${dia}`,
-      terms: restricaoSobreaviso,
-      rhs: 1,
-      operator: glpk.ConstraintType.Equal,
-    });
+// Função para resolver o modelo GLPK
+async function solveGLPKModel(model, GLPK) {
+  try {
+    return GLPK.solve(model, GLPK.GLP_MSG_OFF);
+  } catch (error) {
+    console.error("Erro ao resolver o modelo GLPK:", error);
+    throw error;
   }
-
-  // Resolver o modelo
-  const resultado = lp.solve();
-  return resultado;
 }
 
-// Função principal para executar o processo
-function main() {
-  const dados = carregarDados("data.json");
-  const resultado = construirModelo(dados);
+// Função principal
+async function main() {
+  try {
+    const inputFilePath = path.join(__dirname, "data.json");
+    const inputData = readInputData(inputFilePath);
 
-  // Processar o resultado para gerar o PDF
-  const escalas = {}; // Preencher com a lógica de escalas
-  const resumoSemanal = {}; // Preencher com resumo de horas
+    const GLPK = await glpkModule();
 
-  gerarPDF(escalas, resumoSemanal);
+    const model = generateGLPKModel(inputData, GLPK);
+
+    console.log("Modelo GLPK gerado.");
+
+    const solution = await solveGLPKModel(model, GLPK);
+
+    if (solution.result.status === GLPK.GLP_OPT) {
+      console.log("Solução ótima encontrada.");
+      console.log("Solução:", solution);
+    } else {
+      console.log("Não foi possível encontrar uma solução ótima.");
+      console.log(`Status da solução: ${solution.result.status}`);
+    }
+  } catch (error) {
+    console.error("Erro:", error);
+  }
 }
 
 main();
