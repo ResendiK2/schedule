@@ -17,18 +17,11 @@ function generateGLPKModel(inputData, GLPK) {
     lunch_break,
     on_call_shifts,
     minimum_weekly_active_hours,
-    maximum_weekly_hours,
     allocation_restrictions,
   } = rules;
+  const { start: business_start, end: business_end } = business_hours;
 
-  const { start, end, min_support_requirement } = business_hours;
-  const { start: start_lunch, end: end_lunch } = lunch_break;
-  const {
-    commercial_hours_only,
-    max_weekly_on_call_shifts,
-    min_weekly_rest_days,
-  } = allocation_restrictions;
-
+  // Definindo o modelo básico
   const model = {
     name: "Developer Scheduling",
     objective: {
@@ -41,7 +34,33 @@ function generateGLPKModel(inputData, GLPK) {
     generals: [],
   };
 
-  // a implementação do problema de escalonamento de desenvolvedores deve ser feita aqui...
+  // Definindo variáveis para o custo de cada desenvolvedor
+  developers.forEach((dev, i) => {
+    // Variável para cada desenvolvedor e seus turnos
+    const activeVar = `active_${dev.name}`;
+    const onCallVar = `on_call_${dev.name}`;
+
+    // Adiciona essas variáveis ao modelo
+    model.objective.vars.push({
+      name: activeVar,
+      coef: dev.hourly_rate, // Custo das horas ativas
+    });
+
+    model.objective.vars.push({
+      name: onCallVar,
+      coef: dev.hourly_rate * rules.on_call_payment_rate, // Custo das horas de sobreaviso
+    });
+
+    // Restrições básicas de tempo ativo e sobreaviso por desenvolvedor
+    model.subjectTo.push({
+      name: `min_active_hours_${dev.name}`,
+      vars: [{ name: activeVar, coef: 1 }],
+      bnds: { type: GLPK.GLP_LO, ub: 0, lb: minimum_weekly_active_hours }, // Pelo menos 40 horas ativas
+    });
+  });
+
+  // Adicionar mais restrições, como a distribuição de horários e restrições de sobreaviso
+  // Ainda precisamos definir como alocar corretamente os desenvolvedores nos turnos ativos e de sobreaviso
 
   return model;
 }
